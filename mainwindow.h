@@ -7,6 +7,8 @@
 #include <QPair>
 #include <QtAlgorithms>
 #include <QtMath>
+#include <QMessageBox>
+#include <QFileDialog>
 #include "bridge.h"
 #include "dsu.h"
 
@@ -32,8 +34,11 @@ private:
 private slots:
     void cleanMap();
     void cleanLine();
+    void addPoint(double x, double y);
     void getPoint();
     void input(double x, double y);
     void calc();
+    void importFile();
+    void exportFile();
 };
 #endif // MAINWINDOW_H

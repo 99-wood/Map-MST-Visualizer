@@ -48,6 +48,14 @@ function drawLine(lng1, lat1, lng2, lat2){
     polyline.setZIndex(100);
 }
 
+function drawPoint(lng, lat){
+    var marker = new BMapGL.Marker(new BMapGL.Point(lng, lat));        // 创建标注
+    mp.addOverlay(marker);                     // 将标注添加到地图中
+    marker.addEventListener('click', e => {
+        setTimeout(function(){mp.removeOverlay(marker);}, 50);
+    });
+}
+
 function clean(){
     mp.clearOverlays();
 }

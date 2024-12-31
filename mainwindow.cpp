@@ -23,6 +23,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->calButton, &QPushButton::clicked, this, &MainWindow::getPoint);
     connect(bridge, &Bridge::receiveInfo, this, &MainWindow::input);
     connect(this, &MainWindow::inputFinish, this, &MainWindow::calc);
+    connect(ui->importButton, &QPushButton::clicked, this, &MainWindow::importFile);
+    connect(ui->exportButton, &QPushButton::clicked, this, &MainWindow::exportFile);
 }
 
 MainWindow::~MainWindow()
@@ -41,6 +43,12 @@ void MainWindow::cleanLine()
     qDebug("cleanLine");
     ui->mapWidget->page()->runJavaScript(QString("cleanLine()"));
 
+}
+
+void MainWindow::addPoint(double x, double y)
+{
+    ui->mapWidget->page()->runJavaScript(QString("drawPoint(%1,%2)")
+                                         .arg(x, 0, 'g', 30).arg(y, 0, 'g', 30));
 }
 
 void MainWindow::getPoint()
@@ -111,3 +119,86 @@ void MainWindow::calc()
     points.clear();
 }
 
+void MainWindow::importFile()
+{
+//    qDebug() << 6;
+
+    // 打开目录选择对话框
+     QString fileName = QFileDialog::getOpenFileName(this, tr("Select Text File"), "", tr("Text Files (*.txt)"));
+
+    // 如果用户选择了目录，将路径设置到文本框中
+    if (fileName.isEmpty()) {
+        QMessageBox::critical(this, tr("ERROR"),  tr("Wrong File!"));
+        return;
+    }
+    QFile file(fileName);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "Failed to open file:" << file.errorString();
+        return; // 返回空列表表示失败
+    }
+    cleanMap();
+    QTextStream in(&file); // 创建文本流
+    QString line = in.readLine(); // 逐行读取
+    QStringList parts = line.split(" ", QString::SkipEmptyParts); // 按空格分隔
+    int n = parts[0].toInt();
+    for(int i = 0; i < n; ++i){
+        line = in.readLine();
+        QStringList parts = line.split(" ", QString::SkipEmptyParts); // 按空格分隔
+        double x = parts[0].toDouble(), y = parts[1].toDouble();
+        addPoint(x, y);
+    }
+    return;
+}
+
+void MainWindow::exportFile() {
+    QString filePath = QFileDialog::getSaveFileName(this, "选择保存位置\n", "", "Text Files (*.txt);;All Files (*)");
+
+    // 如果用户没有选择文件，直接返回
+    if (filePath.isEmpty()) {
+        return;
+    }
+
+    // 检查文件是否已经存在
+    QFile file(filePath);
+//    if (file.exists()) {
+//        // 文件已存在，询问用户是否覆盖
+//        QMessageBox::StandardButton reply;
+//        reply = QMessageBox::question(this, "文件已存在\n", "文件已存在，是否覆盖？\n",
+//                                      QMessageBox::Yes | QMessageBox::No);
+//        if (reply == QMessageBox::No) {
+//            return;  // 用户选择不覆盖，退出函数
+//        }
+//    }
+
+    // 创建并打开文件，准备写入
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::critical(this, tr("ERROR"),  tr("Can not open the file!"));
+        return;
+    }
+
+    disconnect(this, &MainWindow::inputFinish, this, &MainWindow::calc);
+    // 使用 QTextStream 写入数据
+    QTextStream out(&file);
+
+    QEventLoop loop; // 事件循环
+
+    getPoint();
+
+    // 连接自定义信号到退出事件循环
+    connect(this, &MainWindow::inputFinish, &loop, &QEventLoop::quit);
+
+    // 启动事件循环，直到收到信号才会继续
+    loop.exec();
+
+    out << points.size() << endl;
+    for(auto point : points){
+        double x = point.first, y = point.second;
+        out << QString("%1 %2").arg(x, 0, 'g', 30).arg(y, 0, 'g', 30) << endl;
+    }
+
+    // 关闭文件
+    file.close();
+    connect(this, &MainWindow::inputFinish, this, &MainWindow::calc);
+
+    QMessageBox::information(this, "OK!", "file has been saved to " + filePath);
+}
